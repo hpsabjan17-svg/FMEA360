@@ -2,299 +2,363 @@
 
 {% block content %}
 
-<div class="container">
+<div class="container product-structure-page">
 
-<h1>Product Structure</h1>
+    <div class="page-header">
+        <div>
+            <h1>🌳 Product Structure</h1>
+            <p>
+                Build the product hierarchy from the main product down to
+                assemblies, components and sub-components.
+            </p>
+        </div>
+    </div>
 
-<p>
-    Build the product hierarchy from the main product down to
-    assemblies, components and sub-components.
-</p>
+    <hr>
 
-<hr>
+    <div class="structure-layout">
 
-<h2>Add Component</h2>
+        <!-- ADD COMPONENT FORM -->
+        <section class="form-card">
 
-<form method="POST">
+            <h2>➕ Add Component</h2>
 
-    <label for="project_id">Select Project</label>
+            <form method="POST" id="componentForm">
 
-    <select name="project_id" id="project_id" required>
+                <label for="project_id">Select Project</label>
 
-        <option value="">Select Project</option>
+                <select name="project_id" id="project_id" required>
+                    <option value="">Select Project</option>
 
-        {% for project in projects %}
+                    {% for project in projects %}
+                        <option
+                            value="{{ project.id }}"
+                            {% if selected_project_id|string == project.id|string %}
+                                selected
+                            {% endif %}
+                        >
+                            {{ project.project_name }}
+                            {% if project.product_name %}
+                                — {{ project.product_name }}
+                            {% endif %}
+                        </option>
+                    {% endfor %}
 
-            <option
-                value="{{ project.id }}"
-                {% if selected_project_id|string == project.id|string %}
-                    selected
-                {% endif %}
-            >
+                </select>
 
-                {{ project.project_name }}
+                <br><br>
 
-                {% if project.product_name %}
-                    — {{ project.product_name }}
-                {% endif %}
+                <label for="parent_id">Parent Component</label>
 
-            </option>
+                <select name="parent_id" id="parent_id">
 
-        {% endfor %}
+                    <option value="">
+                        Root / Main Product
+                    </option>
 
-    </select>
+                    {% for component in components %}
 
-    <br><br>
+                        <option value="{{ component.id }}">
 
-    <label for="parent_id">Parent Component</label>
+                            {% for i in range(component.level|int) %}
+                                &nbsp;&nbsp;&nbsp;&nbsp;
+                            {% endfor %}
 
-    <select name="parent_id" id="parent_id">
+                            {{ component.component_name }}
 
-        <option value="">
-            Root / Main Product
-        </option>
+                            {% if component.label %}
+                                — {{ component.label }}
+                            {% endif %}
 
-        {% for component in components %}
-
-            <option value="{{ component.id }}">
-
-                {% for i in range(component.level|int) %}
-                    &nbsp;&nbsp;&nbsp;&nbsp;
-                {% endfor %}
-
-                {{ component.component_name }}
-
-                {% if component.label %}
-                    — {{ component.label }}
-                {% endif %}
-
-            </option>
-
-        {% endfor %}
-
-    </select>
-
-    <br><br>
-
-    <label for="component_name">Component Name</label>
-
-    <input
-        type="text"
-        id="component_name"
-        name="component_name"
-        placeholder="e.g. Instrument Panel Assembly"
-        required
-    >
-
-    <br><br>
-
-    <label for="component_type">Component Type</label>
-
-    <select
-        name="component_type"
-        id="component_type"
-        required
-    >
-
-        <option value="">Select Type</option>
-
-        <option value="Product">Product</option>
-
-        <option value="Assembly">Assembly</option>
-
-        <option value="Component">Component</option>
-
-        <option value="Sub-component">Sub-component</option>
-
-    </select>
-
-    <br><br>
-
-    <label for="label">Hierarchy Label</label>
-
-    <input
-        type="text"
-        id="label"
-        name="label"
-        placeholder="e.g. IP-001"
-    >
-
-    <br><br>
-
-    <label for="part_number">Part Number</label>
-
-    <input
-        type="text"
-        id="part_number"
-        name="part_number"
-        placeholder="e.g. IP-1000"
-    >
-
-    <br><br>
-
-    <label for="level">Hierarchy Level</label>
-
-    <select name="level" id="level">
-
-        <option value="0">
-            Level 0 — Main Product
-        </option>
-
-        <option value="1">
-            Level 1 — Assembly
-        </option>
-
-        <option value="2">
-            Level 2 — Component
-        </option>
-
-        <option value="3">
-            Level 3 — Sub-component
-        </option>
-
-    </select>
-
-    <br><br>
-
-    <label for="description">Description</label>
-
-    <textarea
-        id="description"
-        name="description"
-        rows="4"
-        placeholder="Describe the component, its purpose or technical details"
-    ></textarea>
-
-    <br><br>
-
-    <button type="submit">
-        + Add Component
-    </button>
-
-</form>
-
-<hr>
-
-<h2>Product Structure Records</h2>
-
-{% if components %}
-
-<div style="overflow-x:auto;">
-
-<table>
-
-    <thead>
-
-        <tr>
-            <th>ID</th>
-            <th>Level</th>
-            <th>Component</th>
-            <th>Type</th>
-            <th>Label</th>
-            <th>Part Number</th>
-            <th>Parent</th>
-            <th>Description</th>
-            <th>Action</th>
-        </tr>
-
-    </thead>
-
-    <tbody>
-
-        {% for component in components %}
-
-        <tr>
-
-            <td>
-                {{ component.id }}
-            </td>
-
-            <td>
-                Level {{ component.level }}
-            </td>
-
-            <td>
-
-                {% for i in range(component.level|int) %}
-                    &nbsp;&nbsp;&nbsp;&nbsp;
-                {% endfor %}
-
-                {% if component.level|int > 0 %}
-                    └─
-                {% endif %}
-
-                <strong>
-                    {{ component.component_name }}
-                </strong>
-
-            </td>
-
-            <td>
-                {{ component.component_type or "—" }}
-            </td>
-
-            <td>
-                {{ component.label or "—" }}
-            </td>
-
-            <td>
-                {{ component.part_number or "—" }}
-            </td>
-
-            <td>
-
-                {% if component.parent_id %}
-
-                    {% for parent in components %}
-
-                        {% if parent.id == component.parent_id %}
-
-                            {{ parent.component_name }}
-
-                        {% endif %}
+                        </option>
 
                     {% endfor %}
 
-                {% else %}
+                </select>
 
-                    <strong>ROOT</strong>
+                <br><br>
 
-                {% endif %}
+                <label for="component_name">
+                    Component Name
+                </label>
 
-            </td>
-
-            <td>
-                {{ component.description or "—" }}
-            </td>
-
-            <td>
-
-                <a
-                    href="{{ url_for('edit_product_structure', record_id=component.id) }}"
-                    class="edit-btn"
+                <input
+                    type="text"
+                    id="component_name"
+                    name="component_name"
+                    placeholder="e.g. GB Assembly"
+                    required
                 >
-                    ✏️ Edit
-                </a>
 
-            </td>
+                <br><br>
 
-        </tr>
+                <label for="component_type">
+                    Component Type
+                </label>
 
-        {% endfor %}
+                <select
+                    name="component_type"
+                    id="component_type"
+                    required
+                >
 
-    </tbody>
+                    <option value="">
+                        Select Type
+                    </option>
 
-</table>
+                    <option value="Product">
+                        Product
+                    </option>
 
-</div>
+                    <option value="Assembly">
+                        Assembly
+                    </option>
 
-{% else %}
+                    <option value="Component">
+                        Component
+                    </option>
 
-    <p>
-        No components have been added for this project yet.
-    </p>
+                    <option value="Sub-component">
+                        Sub-component
+                    </option>
 
-{% endif %}
+                </select>
+
+                <br><br>
+
+                <label for="label">
+                    Hierarchy Label
+                </label>
+
+                <input
+                    type="text"
+                    id="label"
+                    name="label"
+                    placeholder="e.g. GB-001"
+                >
+
+                <br><br>
+
+                <label for="part_number">
+                    Part Number
+                </label>
+
+                <input
+                    type="text"
+                    id="part_number"
+                    name="part_number"
+                    placeholder="e.g. GB-1000"
+                >
+
+                <br><br>
+
+                <label for="description">
+                    Description
+                </label>
+
+                <textarea
+                    id="description"
+                    name="description"
+                    rows="4"
+                    placeholder="Describe the component, its purpose or technical details"
+                ></textarea>
+
+                <p class="level-note">
+                    ℹ️ Hierarchy level is calculated automatically
+                    from the selected parent.
+                </p>
+
+                <button
+                    type="submit"
+                    class="primary-action"
+                >
+                    + Add Component
+                </button>
+
+            </form>
+
+        </section>
+
+
+        <!-- PRODUCT HIERARCHY -->
+        <section class="structure-card">
+
+            <div class="structure-title">
+
+                <div>
+
+                    <h2>📦 Product Hierarchy</h2>
+
+                    {% if selected_project_id %}
+
+                        <p>
+                            Visual structure for the selected project
+                        </p>
+
+                    {% else %}
+
+                        <p>
+                            Select a project to view its hierarchy
+                        </p>
+
+                    {% endif %}
+
+                </div>
+
+            </div>
+
+
+            {% if components %}
+
+                {% macro render_node(node) %}
+
+                    <div class="tree-node">
+
+                        <div class="node-box level-{{ node.level|int }}">
+
+                            <div class="node-top">
+
+                                <span class="node-type">
+                                    {{ node.component_type or 'Component' }}
+                                </span>
+
+                                <span class="node-level">
+                                    L{{ node.level }}
+                                </span>
+
+                            </div>
+
+
+                            <div class="node-name">
+                                {{ node.component_name }}
+                            </div>
+
+
+                            {% if node.label or node.part_number %}
+
+                                <div class="node-meta">
+
+                                    {% if node.label %}
+                                        <span>
+                                            {{ node.label }}
+                                        </span>
+                                    {% endif %}
+
+                                    {% if node.part_number %}
+                                        <span>
+                                            {{ node.part_number }}
+                                        </span>
+                                    {% endif %}
+
+                                </div>
+
+                            {% endif %}
+
+
+                            {% if node.description %}
+
+                                <div class="node-description">
+                                    {{ node.description }}
+                                </div>
+
+                            {% endif %}
+
+
+                            <div class="node-actions">
+
+                                <a
+                                    href="{{ url_for(
+                                        'edit_product_structure',
+                                        record_id=node.id
+                                    ) }}"
+                                >
+                                    ✏️ Edit
+                                </a>
+
+                                <!-- IMPORTANT:
+                                     Do not put Jinja directly inside
+                                     JavaScript.
+                                -->
+
+                                <button
+                                    type="button"
+                                    class="child-btn"
+                                    data-component-id="{{ node.id }}"
+                                    onclick="addChild(this.dataset.componentId)"
+                                >
+                                    ＋ Child
+                                </button>
+
+                            </div>
+
+                        </div>
+
+
+                        {% set children = components
+                            |selectattr('parent_id', 'equalto', node.id)
+                            |list
+                        %}
+
+
+                        {% if children %}
+
+                            <div class="tree-children">
+
+                                {% for child in children %}
+
+                                    {{ render_node(child) }}
+
+                                {% endfor %}
+
+                            </div>
+
+                        {% endif %}
+
+                    </div>
+
+                {% endmacro %}
+
+
+                <div class="product-tree">
+
+                    {% set roots = components
+                        |selectattr('parent_id', 'none')
+                        |list
+                    %}
+
+
+                    {% for root in roots %}
+
+                        {{ render_node(root) }}
+
+                    {% endfor %}
+
+                </div>
+
+
+            {% else %}
+
+                <div class="empty-structure">
+
+                    <div class="empty-icon">
+                        🌳
+                    </div>
+
+                    <h3>
+                        No product structure yet
+                    </h3>
+
+                    <p>
+                        Select a project and add the main product first.
+                    </p>
+
+                </div>
+
+            {% endif %}
+
+        </section>
+
+    </div>
 
 </div>
 
@@ -318,27 +382,538 @@ document
 
     });
 
+
+function addChild(componentId) {
+
+    const parent =
+        document.getElementById("parent_id");
+
+    parent.value =
+        String(componentId);
+
+
+    document
+        .getElementById("component_name")
+        .focus();
+
+
+    document
+        .getElementById("componentForm")
+        .scrollIntoView({
+
+            behavior: "smooth",
+
+            block: "start"
+
+        });
+
+}
+
 </script>
 
 
 <style>
 
-.edit-btn {
-    display: inline-block;
-    padding: 7px 13px;
-    background: #2F75B5;
-    color: white;
-    text-decoration: none;
-    border-radius: 6px;
-    font-size: 14px;
-    font-weight: 600;
-    white-space: nowrap;
+/* PAGE */
+
+.product-structure-page {
+
+    max-width: 1400px;
+
+    margin: auto;
+
 }
 
-.edit-btn:hover {
-    background: #17365D;
+
+/* HEADER */
+
+.page-header h1 {
+
+    margin-bottom: 6px;
+
+}
+
+
+.page-header p {
+
+    color: #667085;
+
+    margin-top: 0;
+
+}
+
+
+/* MAIN LAYOUT */
+
+.structure-layout {
+
+    display: grid;
+
+    grid-template-columns:
+        minmax(300px, 390px)
+        minmax(0, 1fr);
+
+    gap: 24px;
+
+    align-items: start;
+
+}
+
+
+/* CARDS */
+
+.form-card,
+.structure-card {
+
+    background: #fff;
+
+    border: 1px solid #e5e7eb;
+
+    border-radius: 14px;
+
+    padding: 24px;
+
+    box-shadow:
+        0 4px 18px
+        rgba(15, 23, 42, .05);
+
+}
+
+
+.form-card h2,
+.structure-card h2 {
+
+    margin-top: 0;
+
+}
+
+
+/* FORM */
+
+.form-card input,
+.form-card select,
+.form-card textarea {
+
+    width: 100%;
+
+    box-sizing: border-box;
+
+}
+
+
+.level-note {
+
+    font-size: 13px;
+
+    color: #667085;
+
+    background: #f8fafc;
+
+    border-radius: 8px;
+
+    padding: 10px 12px;
+
+}
+
+
+.primary-action {
+
+    width: 100%;
+
+    margin-top: 8px;
+
+}
+
+
+/* STRUCTURE TITLE */
+
+.structure-title {
+
+    display: flex;
+
+    justify-content: space-between;
+
+    align-items: center;
+
+    margin-bottom: 22px;
+
+}
+
+
+.structure-title p {
+
+    margin: 0;
+
+    color: #667085;
+
+    font-size: 14px;
+
+}
+
+
+/* TREE */
+
+.product-tree {
+
+    overflow-x: auto;
+
+    padding: 12px 8px 28px;
+
+}
+
+
+.tree-node {
+
+    position: relative;
+
+    width: max-content;
+
+    min-width: 100%;
+
+}
+
+
+/* BOX */
+
+.node-box {
+
+    position: relative;
+
+    width: 270px;
+
+    min-height: 125px;
+
+    margin: 0 auto;
+
+    padding: 16px;
+
+    box-sizing: border-box;
+
+    background: #fff;
+
+    border: 2px solid #2f75b5;
+
+    border-radius: 12px;
+
+    box-shadow:
+        0 5px 16px
+        rgba(15, 23, 42, .08);
+
+    z-index: 2;
+
+}
+
+
+/* LEVEL COLORS */
+
+.node-box.level-0 {
+
+    border-color: #17365d;
+
+    background: #f5f9fd;
+
+}
+
+
+.node-box.level-1 {
+
+    border-color: #2f75b5;
+
+}
+
+
+.node-box.level-2 {
+
+    border-color: #70ad47;
+
+}
+
+
+.node-box.level-3,
+.node-box.level-4,
+.node-box.level-5 {
+
+    border-color: #a5a5a5;
+
+}
+
+
+/* TOP */
+
+.node-top {
+
+    display: flex;
+
+    justify-content: space-between;
+
+    gap: 8px;
+
+    margin-bottom: 9px;
+
+}
+
+
+.node-type,
+.node-level {
+
+    font-size: 11px;
+
+    font-weight: 700;
+
+    color: #475467;
+
+    background: #eef2f6;
+
+    padding: 4px 7px;
+
+    border-radius: 6px;
+
+}
+
+
+/* NAME */
+
+.node-name {
+
+    font-size: 18px;
+
+    font-weight: 800;
+
+    color: #172b4d;
+
+    margin-bottom: 7px;
+
+}
+
+
+/* META */
+
+.node-meta {
+
+    display: flex;
+
+    flex-wrap: wrap;
+
+    gap: 6px;
+
+    font-size: 12px;
+
+    color: #475467;
+
+}
+
+
+.node-meta span {
+
+    background: #f2f4f7;
+
+    padding: 4px 7px;
+
+    border-radius: 5px;
+
+}
+
+
+/* DESCRIPTION */
+
+.node-description {
+
+    margin-top: 8px;
+
+    font-size: 12px;
+
+    color: #667085;
+
+}
+
+
+/* ACTIONS */
+
+.node-actions {
+
+    display: flex;
+
+    gap: 8px;
+
+    margin-top: 12px;
+
+}
+
+
+.node-actions a,
+.node-actions button {
+
+    border: 0;
+
+    padding: 6px 9px;
+
+    border-radius: 6px;
+
+    font-size: 12px;
+
+    font-weight: 700;
+
+    text-decoration: none;
+
+    cursor: pointer;
+
+    background: #edf4fb;
+
+    color: #17365d;
+
+}
+
+
+/* CONNECTORS */
+
+.tree-children {
+
+    display: flex;
+
+    justify-content: center;
+
+    gap: 28px;
+
+    position: relative;
+
+    padding-top: 34px;
+
+}
+
+
+.tree-children::before {
+
+    content: "";
+
+    position: absolute;
+
+    top: 0;
+
+    left: 50%;
+
+    width: 2px;
+
+    height: 34px;
+
+    background: #cbd5e1;
+
+}
+
+
+.tree-children > .tree-node::before {
+
+    content: "";
+
+    position: absolute;
+
+    top: -18px;
+
+    left: 50%;
+
+    width: 2px;
+
+    height: 18px;
+
+    background: #cbd5e1;
+
+}
+
+
+.tree-children > .tree-node:not(:first-child)::after,
+.tree-children > .tree-node:not(:last-child)::after {
+
+    content: "";
+
+    position: absolute;
+
+    top: -18px;
+
+    height: 2px;
+
+    background: #cbd5e1;
+
+    width: calc(50% + 14px);
+
+}
+
+
+.tree-children > .tree-node:not(:first-child)::after {
+
+    left: -14px;
+
+}
+
+
+.tree-children > .tree-node:not(:last-child)::after {
+
+    right: -14px;
+
+}
+
+
+/* EMPTY */
+
+.empty-structure {
+
+    text-align: center;
+
+    padding: 70px 20px;
+
+    color: #667085;
+
+}
+
+
+.empty-icon {
+
+    font-size: 48px;
+
+    margin-bottom: 10px;
+
+}
+
+
+.empty-structure h3 {
+
+    color: #172b4d;
+
+    margin-bottom: 5px;
+
+}
+
+
+/* RESPONSIVE */
+
+@media (max-width: 950px) {
+
+    .structure-layout {
+
+        grid-template-columns: 1fr;
+
+    }
+
+}
+
+
+@media (max-width: 650px) {
+
+    .form-card,
+    .structure-card {
+
+        padding: 16px;
+
+    }
+
+
+    .node-box {
+
+        width: 240px;
+
+    }
+
 }
 
 </style>
+
 
 {% endblock %}
