@@ -406,7 +406,9 @@ def setup_database():
 
 @app.before_request
 def require_login():
-    if request.endpoint in {"login", "register", "static"}:
+    # These routes must remain publicly accessible.
+    # The root URL is intentionally the registration entry point.
+    if request.endpoint in {"login", "register", "dashboard", "static"}:
         return
 
     if "user_id" not in session:
@@ -563,13 +565,6 @@ def record_belongs_to_user(conn, table_name, record_id):
 # =========================================================
 
 @app.route("/")
-def index():
-    # The public Render link always starts at Registration.
-    # Existing logged-in users are handled by /register -> /dashboard.
-    return redirect(url_for("register"))
-
-
-@app.route("/dashboard")
 def dashboard():
     if not session.get("user_id"):
         return redirect(url_for("register"))
@@ -585,6 +580,12 @@ def dashboard():
         "dashboard.html",
         projects=projects
     )
+
+
+
+@app.route("/dashboard")
+def dashboard_alias():
+    return redirect(url_for("dashboard"))
 
 
 # =========================================================
@@ -773,25 +774,11 @@ def product_structure():
         ).strip()
         label = request.form.get("label", "").strip()
         part_number = request.form.get("part_number", "").strip()
+        level = request.form.get("level", "0").strip()
         description = request.form.get("description", "").strip()
 
         if parent_id == "":
             parent_id = None
-
-        # Calculate hierarchy level from the selected parent so the
-        # visual product structure always follows the real hierarchy.
-        level = 0
-        if parent_id and project_id:
-            parent = conn.execute("""
-                SELECT level
-                FROM product_structure
-                WHERE id = ? AND project_id = ?
-            """, (parent_id, project_id)).fetchone()
-            if parent:
-                level = int(parent["level"] or 0) + 1
-            else:
-                parent_id = None
-                level = 0
 
         if project_id and component_name:
             conn.execute("""
@@ -1152,9 +1139,8 @@ def dfmea():
         FROM dfmea AS d
         LEFT JOIN projects AS p ON d.project_id = p.id
         LEFT JOIN product_structure AS ps ON d.component_id = ps.id
-        WHERE p.user_id = ?
         ORDER BY d.id DESC
-    """, (current_user_id(),)).fetchall()
+    """).fetchall()
 
     conn.close()
 
@@ -1286,9 +1272,8 @@ def pfmea():
         FROM pfmea AS p
         LEFT JOIN projects AS pr ON p.project_id = pr.id
         LEFT JOIN product_structure AS ps ON p.component_id = ps.id
-        WHERE pr.user_id = ?
         ORDER BY p.id DESC
-    """, (current_user_id(),)).fetchall()
+    """).fetchall()
 
     conn.close()
 
@@ -1400,9 +1385,8 @@ def control_plan():
         FROM control_plan AS cp
         LEFT JOIN projects AS p ON cp.project_id = p.id
         LEFT JOIN product_structure AS ps ON cp.component_id = ps.id
-        WHERE p.user_id = ?
         ORDER BY cp.id DESC
-    """, (current_user_id(),)).fetchall()
+    """).fetchall()
 
     conn.close()
 
