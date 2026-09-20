@@ -406,8 +406,8 @@ def setup_database():
 
 @app.before_request
 def require_login():
-    # These routes must remain publicly accessible.
-    # The root URL is intentionally the registration entry point.
+    # Login, registration, static files and the public root entry point
+    # must remain accessible without an active session.
     if request.endpoint in {"login", "register", "dashboard", "static"}:
         return
 
@@ -774,11 +774,25 @@ def product_structure():
         ).strip()
         label = request.form.get("label", "").strip()
         part_number = request.form.get("part_number", "").strip()
-        level = request.form.get("level", "0").strip()
         description = request.form.get("description", "").strip()
 
         if parent_id == "":
             parent_id = None
+
+        # Calculate hierarchy level from the actual parent instead of
+        # trusting a value sent by the browser.
+        level = 0
+        if parent_id:
+            parent = conn.execute("""
+                SELECT id, level
+                FROM product_structure
+                WHERE id = ? AND project_id = ?
+            """, (parent_id, project_id)).fetchone()
+
+            if parent:
+                level = int(parent["level"] or 0) + 1
+            else:
+                parent_id = None
 
         if project_id and component_name:
             conn.execute("""
@@ -935,48 +949,166 @@ def key_characteristics():
 
 @app.route("/functional-links", methods=["GET", "POST"])
 def functional_links():
+    """Visual Function -> Product Structure allocation matrix.
+
+    A click on an intersection toggles the relationship between one
+    Functional Analysis record and one Product Structure component.
+    The existing functional_links table is reused, so no migration is
+    required for existing projects or links.
+    """
     conn = get_db()
     selected_project_id = request.args.get("project_id", "")
-    if selected_project_id and not project_belongs_to_user(conn, selected_project_id):
+
+    if selected_project_id and not project_belongs_to_user(
+        conn, selected_project_id
+    ):
         selected_project_id = ""
 
+    # ---------------------------------------------------------
+    # CLICK-TO-LINK API
+    # ---------------------------------------------------------
     if request.method == "POST":
-        project_id = request.form.get("project_id", "")
-        if project_id and not project_belongs_to_user(conn, project_id):
-            conn.close()
-            return "Project not found.", 404
-        function_id = request.form.get("function_id", "")
-        component_id = request.form.get("component_id", "")
-        requirement = request.form.get(
-            "requirement", ""
-        ).strip()
+        data = request.get_json(silent=True)
 
-        if (
-            project_id
-            and function_id
-            and component_id
-            and requirement
-        ):
-            conn.execute("""
-                INSERT INTO functional_links
-                (project_id, function_id, component_id, requirement)
-                VALUES (?, ?, ?, ?)
-            """, (
-                project_id,
-                function_id,
-                component_id,
-                requirement
-            ))
+        if data:
+            project_id = str(data.get("project_id", "")).strip()
+            function_id = str(data.get("function_id", "")).strip()
+            component_id = str(data.get("component_id", "")).strip()
+
+            if not project_id or not function_id or not component_id:
+                conn.close()
+                return {
+                    "success": False,
+                    "message": "Project, function and component are required."
+                }, 400
+
+            if not project_belongs_to_user(conn, project_id):
+                conn.close()
+                return {
+                    "success": False,
+                    "message": "Project not found."
+                }, 404
+
+            function_row = conn.execute("""
+                SELECT id, project_id, function, requirement
+                FROM functional_analysis
+                WHERE id = ? AND project_id = ?
+            """, (function_id, project_id)).fetchone()
+
+            component_row = conn.execute("""
+                SELECT id, project_id, component_name
+                FROM product_structure
+                WHERE id = ? AND project_id = ?
+            """, (component_id, project_id)).fetchone()
+
+            if not function_row or not component_row:
+                conn.close()
+                return {
+                    "success": False,
+                    "message": "Function or component not found."
+                }, 404
+
+            existing = conn.execute("""
+                SELECT id
+                FROM functional_links
+                WHERE project_id = ?
+                  AND function_id = ?
+                  AND component_id = ?
+            """, (project_id, function_id, component_id)).fetchone()
+
+            if existing:
+                conn.execute(
+                    "DELETE FROM functional_links WHERE id = ?",
+                    (existing["id"],)
+                )
+                linked = False
+                link_id = existing["id"]
+            else:
+                # The Functional Analysis requirement is the traceability
+                # requirement. The user no longer has to type it manually.
+                requirement = (function_row["requirement"] or "").strip()
+                conn.execute("""
+                    INSERT INTO functional_links
+                    (project_id, function_id, component_id, requirement)
+                    VALUES (?, ?, ?, ?)
+                """, (
+                    project_id,
+                    function_id,
+                    component_id,
+                    requirement
+                ))
+                link_id = conn.execute(
+                    "SELECT last_insert_rowid()"
+                ).fetchone()[0]
+                linked = True
+
             conn.commit()
             conn.close()
 
-            return redirect(
-                url_for(
-                    "functional_links",
-                    project_id=project_id
-                )
-            )
+            return {
+                "success": True,
+                "linked": linked,
+                "link_id": link_id,
+                "message": "Link created." if linked else "Link removed."
+            }
 
+        # Keep a small compatibility path for old form submissions.
+        project_id = request.form.get("project_id", "").strip()
+        function_id = request.form.get("function_id", "").strip()
+        component_id = request.form.get("component_id", "").strip()
+
+        if project_id and function_id and component_id:
+            if not project_belongs_to_user(conn, project_id):
+                conn.close()
+                return "Project not found.", 404
+
+            function_row = conn.execute("""
+                SELECT id, requirement
+                FROM functional_analysis
+                WHERE id = ? AND project_id = ?
+            """, (function_id, project_id)).fetchone()
+
+            component_row = conn.execute("""
+                SELECT id
+                FROM product_structure
+                WHERE id = ? AND project_id = ?
+            """, (component_id, project_id)).fetchone()
+
+            if function_row and component_row:
+                existing = conn.execute("""
+                    SELECT id
+                    FROM functional_links
+                    WHERE project_id = ?
+                      AND function_id = ?
+                      AND component_id = ?
+                """, (project_id, function_id, component_id)).fetchone()
+
+                if existing:
+                    conn.execute(
+                        "DELETE FROM functional_links WHERE id = ?",
+                        (existing["id"],)
+                    )
+                else:
+                    conn.execute("""
+                        INSERT INTO functional_links
+                        (project_id, function_id, component_id, requirement)
+                        VALUES (?, ?, ?, ?)
+                    """, (
+                        project_id,
+                        function_id,
+                        component_id,
+                        function_row["requirement"] or ""
+                    ))
+                conn.commit()
+
+        conn.close()
+        return redirect(
+            url_for("functional_links", project_id=project_id)
+        )
+
+    # ---------------------------------------------------------
+    # PROJECTS / MATRIX DATA
+    # ---------------------------------------------------------
     projects = conn.execute("""
         SELECT id, project_name, product_name
         FROM projects
@@ -984,21 +1116,37 @@ def functional_links():
         ORDER BY id DESC
     """, (current_user_id(),)).fetchall()
 
+    functions = []
+    components = []
+    linked_map = {}
+    records = []
+
     if selected_project_id:
         functions = conn.execute("""
-            SELECT * FROM functional_analysis
+            SELECT id, project_id, function, requirement
+            FROM functional_analysis
             WHERE project_id = ?
             ORDER BY id ASC
         """, (selected_project_id,)).fetchall()
 
         components = conn.execute("""
-            SELECT * FROM product_structure
+            SELECT id, project_id, parent_id, component_name,
+                   component_type, label, part_number, level
+            FROM product_structure
             WHERE project_id = ?
             ORDER BY level ASC, id ASC
         """, (selected_project_id,)).fetchall()
-    else:
-        functions = []
-        components = []
+
+        links = conn.execute("""
+            SELECT id, function_id, component_id
+            FROM functional_links
+            WHERE project_id = ?
+        """, (selected_project_id,)).fetchall()
+
+        linked_map = {
+            f"{row['function_id']}:{row['component_id']}": row['id']
+            for row in links
+        }
 
     records = conn.execute("""
         SELECT fl.id, fl.project_id,
@@ -1022,6 +1170,7 @@ def functional_links():
         projects=projects,
         functions=functions,
         components=components,
+        linked_map=linked_map,
         records=records,
         selected_project_id=selected_project_id
     )
