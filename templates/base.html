@@ -23,76 +23,94 @@
          HEADER
     ====================================================== -->
 
-    <header>
+    <header class="main-header">
 
-        <div class="logo">
-            Automotive FMEA
+        <div class="header-inner">
+
+            <!-- LOGO -->
+
+            <div class="logo">
+                Automotive FMEA
+            </div>
+
+
+            <!-- NAVIGATION -->
+
+            <nav class="main-nav">
+
+                <a href="/dashboard">
+                    Dashboard
+                </a>
+
+                <a href="/project">
+                    Project Details
+                </a>
+
+                <a href="/functional-analysis">
+                    Functional Analysis
+                </a>
+
+                <a href="/boundary-diagram">
+                    Boundary Diagram
+                </a>
+
+                <a href="/product-structure">
+                    Product Structure
+                </a>
+
+                <a href="/key-characteristics">
+                    Key Characteristics
+                </a>
+
+                <a href="/functional-links">
+                    Functional Linking
+                </a>
+
+                <a href="/dfmea">
+                    DFMEA
+                </a>
+
+                <a href="/pfmea">
+                    PFMEA
+                </a>
+
+                <a href="/control-plan">
+                    Control Plan
+                </a>
+
+                <a href="/reports">
+                    Reports
+                </a>
+
+
+                <!-- USER / SIGN OUT -->
+
+                {% if session.get('user_id') %}
+
+                    <span class="user-name">
+
+                        {{ session.get('name')
+                           or session.get('username')
+                           or 'User' }}
+
+                    </span>
+
+
+                    <a href="{{ url_for('logout') }}"
+                       class="logout-link">
+
+                        Sign Out
+
+                    </a>
+
+                {% endif %}
+
+            </nav>
+
         </div>
 
-
-        <!-- =================================================
-             NAVIGATION
-        ================================================== -->
-
-        <nav>
-
-            <a href="/dashboard">
-                Dashboard
-            </a>
-
-
-            <a href="/project">
-                Project Details
-            </a>
-
-
-            <a href="/functional-analysis">
-                Functional Analysis
-            </a>
-
-
-            <a href="/boundary-diagram">
-                Boundary Diagram
-            </a>
-
-
-            <a href="/product-structure">
-                Product Structure
-            </a>
-
-
-            <a href="/key-characteristics">
-                Key Characteristics
-            </a>
-
-
-            <a href="/functional-links">
-                Functional Linking
-            </a>
-
-
-            <a href="/dfmea">
-                DFMEA
-            </a>
-
-
-            <a href="/pfmea">
-                PFMEA
-            </a>
-
-
-            <a href="/control-plan">
-                Control Plan
-            </a>
-
-
-            <a href="/reports">
-                Reports
-            </a>
-
-        </nav>
-
     </header>
+
 
 
     <!-- =====================================================
@@ -104,6 +122,7 @@
         {% block content %}
 
         {% endblock %}
+
 
 
         <!-- =================================================
@@ -321,10 +340,10 @@
 
             {% endif %}
 
-
         </div>
 
     </main>
+
 
 
     <!-- =====================================================
@@ -338,6 +357,7 @@
         </p>
 
     </footer>
+
 
 
     <!-- =====================================================
